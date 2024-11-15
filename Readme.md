@@ -1,12 +1,3 @@
-Terraform AWS Infrastructure Deployment
-This project provides Terraform modules to set up AWS infrastructure with high availability, security, and performance in mind. The infrastructure includes components such as an Application Load Balancer (ALB), Auto Scaling Group, RDS, Route 53, AWS Elemental MediaConvert, ClickHouseDB, and optional CI/CD pipeline resources.
-
-Prerequisites
-Terraform: Install Terraform (v1.0 or later) from terraform.io.
-AWS CLI: Install AWS CLI and configure it with appropriate permissions (aws configure).
-IAM Permissions: Ensure your AWS credentials have permissions for creating resources used in this project (e.g., EC2, RDS, ALB, Route 53, MediaConvert).
-Project Structure
-The project is structured as follows:
 
 
 project/
@@ -55,8 +46,6 @@ Apply the changes to create the resources in your AWS account.
 bash
 Copy code
 terraform apply
-6. Destroy the Infrastructure (Optional)
-If you need to tear down the resources created, use:
 
 
 
