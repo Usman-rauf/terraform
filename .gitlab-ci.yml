@@ -1,0 +1,75 @@
+stages:
+  - build
+  - push
+  - deploy
+
+variables:
+  AWS_DEFAULT_REGION: "us-east-1"
+  FRONTEND_S3_BUCKET: "your-frontend-s3-bucket-name"
+  BACKEND_ECR_REPOSITORY: "your-backend-ecr-repo-name"
+  ECS_CLUSTER_NAME: "your-ecs-cluster-name"
+  ECS_SERVICE_NAME: "your-ecs-service-name"
+  TASK_DEFINITION_FILE: "ecs_task_definition.json"
+
+workflow:
+  name: "Full Stack Deployment Pipeline"
+
+# Frontend Jobs
+
+build-frontend:
+  image: node:16
+  stage: build
+  script:
+    - echo "Building Frontend Application..."
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 hour
+  name: "Build Frontend Application"
+
+deploy-frontend:
+  image: amazon/aws-cli:latest
+  stage: deploy
+  script:
+    - echo "Deploying Frontend to S3..."
+    - aws s3 sync dist/ s3://$FRONTEND_S3_BUCKET --delete
+  name: "Deploy Frontend to S3"
+  only:
+    - main
+
+# Backend Jobs
+
+build-backend:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  script:
+    - echo "$AWS_ACCESS_KEY_ID" | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+    - docker build -t $BACKEND_ECR_REPOSITORY .
+    - docker tag $BACKEND_ECR_REPOSITORY:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$BACKEND_ECR_REPOSITORY:latest
+  artifacts:
+    paths:
+      - $TASK_DEFINITION_FILE
+    expire_in: 1 hour
+  name: "Build Backend Docker Image"
+
+push-to-ecr:
+  image: docker:latest
+  stage: push
+  services:
+    - docker:dind
+  script:
+    - echo "Pushing Docker Image to ECR..."
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$BACKEND_ECR_REPOSITORY:latest
+  name: "Push Backend Image to ECR"
+
+deploy-backend:
+  image: amazon/aws-cli:latest
+  stage: deploy
+  script:
+    - echo "Updating ECS Task Definition..."
+    - aws ecs describe-task-definition --task-definition $ECS_SERVICE_NAME > $TASK_DEFINITION_FILE
+    - jq '.taskDefinition.containerDefinitions[0].image = "'$AWS_ACCOUNT_ID'.dkr.ecr.'$AWS_DEFAULT_REGION'.amazonaws.com/'$BACKEND_ECR_REPOSITORY':latest"' $TASK_DEFINITION_FILE > $TASK_DEFINITION_FILE.tmp && mv $TASK_DEF
